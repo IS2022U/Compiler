@@ -1,0 +1,112 @@
+import tkinter as tk
+from tkinter import ttk, messagebox
+from lexer import Lexer
+from parser_ import Parser
+from interpreter import Interpreter
+from nodes import BinaryNode, UnaryNode, NumberNode
+import os
+from graphviz import Digraph
+
+class CompilerUI:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Compiler Interface")
+        self.root.geometry("800x600")
+
+        # Input Frame
+        input_frame = ttk.LabelFrame(root, text="Input")
+        input_frame.pack(fill="x", padx=10, pady=10)
+        
+        self.input_entry = ttk.Entry(input_frame, font=("Arial", 14))
+        self.input_entry.pack(fill="x", padx=5, pady=5)
+
+        self.run_button = ttk.Button(input_frame, text="Run", command=self.run_compiler)
+        self.run_button.pack(padx=5, pady=5)
+
+        # Output Frame
+        output_frame = ttk.LabelFrame(root, text="Output")
+        output_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # Token Display
+        token_frame = ttk.LabelFrame(output_frame, text="Tokens")
+        token_frame.pack(side="left", fill="y", padx=5, pady=5)
+
+        self.token_listbox = tk.Listbox(token_frame, font=("Courier", 12))
+        self.token_listbox.pack(fill="both", expand=True, padx=5, pady=5)
+
+        # Parse Tree Display
+        tree_frame = ttk.LabelFrame(output_frame, text="Parse Tree")
+        tree_frame.pack(side="right", fill="both", expand=True, padx=5, pady=5)
+
+        self.tree_canvas = tk.Canvas(tree_frame, bg="white")
+        self.tree_canvas.pack(fill="both", expand=True, padx=5, pady=5)
+
+    def run_compiler(self):
+        expression = self.input_entry.get()
+        if not expression.strip():
+            messagebox.showerror("Error", "Input cannot be empty!")
+            return
+
+        try:
+            # Lexing
+            lexer = Lexer(expression)
+            tokens = lexer.get_tokens()
+
+            # Display tokens
+            self.token_listbox.delete(0, tk.END)
+            for token in tokens:
+                self.token_listbox.insert(tk.END, repr(token))
+
+            # Parsing
+            parser = Parser(tokens)
+            parse_tree = parser.parse()
+
+            # Display Parse Tree
+            self.render_parse_tree(parse_tree)
+
+            # Interpreting
+            interpreter = Interpreter()
+            result = interpreter.visit(parse_tree)
+            messagebox.showinfo("Result", f"Result: {result.value}")
+
+        except RuntimeError as e:
+            messagebox.showerror("Error", str(e))
+
+    def render_parse_tree(self, parse_tree):
+        graph = Digraph(format="png")
+        graph.attr(dpi="300")
+
+        def add_nodes_edges(node, parent_id=None):
+            node_id = id(node)
+            label = ""
+            if isinstance(node, NumberNode):
+                label = str(node.value)
+            elif isinstance(node, BinaryNode):
+                label = node.type
+            elif isinstance(node, UnaryNode):
+                label = node.type
+
+            graph.node(str(node_id), label)
+
+            if parent_id:
+                graph.edge(str(parent_id), str(node_id))
+
+            if isinstance(node, BinaryNode):
+                add_nodes_edges(node.left_node, node_id)
+                add_nodes_edges(node.right_node, node_id)
+            elif isinstance(node, UnaryNode):
+                add_nodes_edges(node.node, node_id)
+
+        add_nodes_edges(parse_tree)
+
+        # Save and display the graph
+        graph.render("parse_tree", cleanup=True)
+        tree_image = tk.PhotoImage(file="parse_tree.png")
+        self.tree_canvas.delete("all")
+        self.tree_canvas.create_image(10, 10, anchor="nw", image=tree_image)
+        self.tree_canvas.image = tree_image  # Keep reference to avoid garbage collection
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = CompilerUI(root)
+    root.mainloop()

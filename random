@@ -1,0 +1,14 @@
+Set Up the Environment:
+
+Create a scratch directory in the compiler's directory:
+
+mkdir scratch
+
+Compile and Run C Code:
+
+Use the ./run-test script provided by the compiler:
+
+./run-test <c-file.c>
+Replace <c-file.c> with the path to your C file. For example:
+
+./run-test hello.c

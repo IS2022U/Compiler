@@ -1,0 +1,43 @@
+#!/bin/bash
+
+set -euo pipefail
+# set -x
+
+testdir="c-testsuite/tests/single-exec"
+
+max=$(find "$testdir" -name '*.c' | wc -l)
+
+limit="${1:-$max}"
+passed="0"
+failures=""
+echo "running $limit"
+
+echo -ne "0\t"
+for i in $(seq "$limit")
+do
+    cfile="$testdir/$(printf "%05d" "$i").c"
+    if grep -Eq "^$i ?#" skip
+    then
+        echo -ne "\033[0;33mx\033[0m"
+    elif ! ./run-test "$cfile" &>/dev/null
+    then
+        failures="$failures $i"
+        echo -ne "\033[0;31mx\033[0m"
+    else
+        echo -ne "\033[0;32mx\033[0m"
+        passed=$(($passed + 1))
+    fi
+
+    if [ "$(($i % 25))" == "0" ]
+    then
+        echo -ne "\n$i\t"
+    elif [ "$(($i % 5))" == "0" ]
+    then
+        echo -n " "
+    fi
+done
+echo -e "\npassed $passed/$limit"
+if [ ! -z "$failures" ]
+then
+    echo "failures:$failures"
+fi
